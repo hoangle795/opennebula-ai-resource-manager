@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>NebulaStack | System Logs</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#3c83f6", 
+                        "background": "#101722", 
+                        "surface-container": "#1f2937",
+                        "outline-variant": "#374151"
+                    }
+                },
+            },
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; height: 100vh; overflow: hidden; }
+        h1, h2, .nav-font { font-family: 'Space Grotesk', sans-serif; }
+        .terminal-scroll::-webkit-scrollbar { width: 4px; }
+        .terminal-scroll::-webkit-scrollbar-track { background: #05070a; }
+        .terminal-scroll::-webkit-scrollbar-thumb { background: #374151; border-radius: 2px; }
+        .scanline {
+            background: linear-gradient(to bottom, transparent 50%, rgba(60, 131, 246, 0.02) 50%);
+            background-size: 100% 4px;
+        }
+        .blink-cursor { animation: blink 1s step-end infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+        /* Hiệu ứng 3 dấu chấm cho AI đang gõ */
+        .typing-dot { animation: typing 1.4s infinite ease-in-out both; }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+    </style>
+</head>
+<body class="bg-[#101722] text-slate-100 flex flex-col">
+
+    <!-- Header (Đồng bộ Dashboard) -->
+    <header class="h-14 border-b border-slate-800 bg-[#101722] flex justify-between items-center px-6 shrink-0 z-50">
+        <div class="flex items-center gap-8">
+            <div class="text-lg font-bold text-white tracking-tighter flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">hub</span>
+                NebulaStack
+            </div>
+            <nav class="flex items-center gap-6 nav-font text-sm uppercase tracking-wider">
+                <a class="text-slate-400 hover:text-white transition-colors cursor-pointer" href="/">Dashboard</a>
+                <a class="text-slate-400 hover:text-white transition-colors cursor-pointer" href="/agent">AI Agent</a>
+                <a class="text-primary border-b-2 border-primary pb-1" href="/system-logs">System Logs</a>
+            </nav>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="h-8 w-8 rounded-full border border-slate-700 overflow-hidden">
+                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuBgTNYCYFk18lJIbQ4APvHWW-4Wyjv6Wz8B0DN0aoWWsxeWZJ7aLZkj6HsLcfpGRKEDSaSXVb7TB33spE0NQ3VBO_4SB7iG1x6d3GFfyvvHmUgvQZ22bhNC757xWzS9cTpWY6ZB6kJjhDAo49xXjjqRgJGux8JhcIi6rIMLFzOs4VywVnHj7rlj5XYsmNSE3rqYm_6NCIjiD4A-kic9fB6ia8Jm7ZXLuJ-msAnrxfSNKTMF6ahE-InqiZUn3utsTGF3Y_KvNldbFFRi" class="w-full h-full object-cover" />
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col p-4 gap-4 min-h-0">
+        <!-- Sub Header -->
+        <div class="flex justify-between items-center shrink-0">
+            <div>
+                <h1 class="text-xl font-bold text-white tracking-tight">Infrastructure Intelligence</h1>
+                <p class="text-xs text-slate-400">Live system diagnostic and AI autonomous stream</p>
+            </div>
+            <div class="flex gap-2">
+                <div class="flex items-center gap-2 bg-slate-800/50 border border-slate-700 px-3 py-1 rounded-lg">
+                    <span class="h-2 w-2 rounded-full bg-primary animate-pulse"></span>
+                    <span class="text-[10px] font-bold text-primary tracking-widest uppercase">Telemetry Active</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grid Layout -->
+        <div class="flex-1 grid grid-cols-12 gap-4 min-h-0">
+            <!-- Left: Logs & Alerts -->
+            <div class="col-span-8 flex flex-col gap-4 min-h-0">
+                <!-- Logs Terminal -->
+                <section class="flex-[2] bg-[#05070a] border border-slate-800 rounded-xl overflow-hidden flex flex-col shadow-2xl">
+                    <div class="px-4 py-2 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary text-sm">terminal</span>
+                            <span class="nav-font text-[11px] font-bold uppercase tracking-widest text-slate-300">Prometheus Telemetry Stream</span>
+                        </div>
+                        <span class="text-[10px] text-slate-500 font-mono">ID: NBL-042</span>
+                    </div>
+                    <!-- Khung chứa Log cập nhật tự động -->
+                    <div id="terminal-logs" class="flex-1 p-4 font-code text-[12px] terminal-scroll overflow-y-auto scanline space-y-1">
+                        <!-- Log sẽ được chèn vào đây qua Javascript -->
+                    </div>
+                </section>
+
+                <!-- Small Alerts Row -->
+                <section class="flex-1 grid grid-cols-3 gap-3 min-h-0">
+                    <div class="bg-slate-900/50 border border-slate-800 p-3 rounded-xl border-l-4 border-rose-500">
+                        <p class="text-[9px] text-rose-500 font-bold uppercase">Critical</p>
+                        <p class="text-[12px] font-bold text-white mt-1">Database Lag</p>
+                        <p class="text-[10px] text-slate-400 leading-tight">Latency increased by 140%</p>
+                    </div>
+                    <div class="bg-slate-900/50 border border-slate-800 p-3 rounded-xl border-l-4 border-amber-500">
+                        <p class="text-[9px] text-amber-500 font-bold uppercase">Warning</p>
+                        <p class="text-[12px] font-bold text-white mt-1">API Spikes</p>
+                        <p class="text-[10px] text-slate-400 leading-tight">p99 latency > 500ms</p>
+                    </div>
+                    <div class="bg-slate-900/50 border border-slate-800 p-3 rounded-xl border-l-4 border-indigo-400">
+                        <p class="text-[9px] text-indigo-400 font-bold uppercase">Alert</p>
+                        <p class="text-[12px] font-bold text-white mt-1">CPU Limit</p>
+                        <p class="text-[10px] text-slate-400 leading-tight">Cluster reaching 92%</p>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Right: AI Chat -->
+            <section class="col-span-4 bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden flex flex-col shadow-2xl min-h-0">
+                <div class="p-4 border-b border-slate-800 bg-slate-900/50">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-primary text-sm">psychology</span>
+                            </div>
+                            <div>
+                                <h2 class="text-xs font-bold text-white uppercase tracking-wider">Nebula AI Agent</h2>
+                                <p class="text-[10px] text-slate-500">MCP Active • Diagnostic Mode</p>
+                            </div>
+                        </div>
+                        <span class="text-[9px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded border border-emerald-500/20 font-bold">ONLINE</span>
+                    </div>
+                </div>
+
+                <!-- Chat Area -->
+                <div id="chat-container" class="flex-1 p-4 flex flex-col gap-4 overflow-y-auto terminal-scroll bg-[#05070a]/30 scanline">
+                    <!-- Tin nhắn khởi tạo mặc định -->
+                    <div class="max-w-[85%] self-start">
+                        <div class="bg-slate-800 text-slate-200 p-3 rounded-2xl rounded-tl-none text-[12px] border border-slate-700">
+                            I'm ready. How can I assist you with the infrastructure today?
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input -->
+                <div class="p-3 border-t border-slate-800 bg-slate-900/50">
+                    <div class="relative flex items-center">
+                        <input id="chat-input" type="text" class="w-full bg-black border border-slate-700 rounded-xl py-2 px-4 text-xs focus:ring-1 focus:ring-primary focus:border-primary placeholder-slate-600 text-slate-200" placeholder="Ask AI for diagnostics..." />
+                        <button onclick="handleManualSubmit()" class="absolute right-2 text-primary hover:text-white transition-colors">
+                            <span class="material-symbols-outlined text-lg">arrow_circle_up</span>
+                        </button>
+                    </div>
+                    <div class="flex gap-2 mt-2">
+                        <button onclick="handleChatSubmit('Scale Cluster')" class="text-[9px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700 font-bold uppercase transition-all">Scale Cluster</button>
+                        <button onclick="handleChatSubmit('Reset API Nodes')" class="text-[9px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700 font-bold uppercase transition-all">Reset Nodes</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="h-10 border-t border-slate-800 bg-[#101722] flex justify-between items-center px-6 shrink-0">
+        <div class="text-[10px] text-slate-600 font-medium">
+            © 2024 NEBULASTACK • INFRASTRUCTURE OPS
+        </div>
+        <div class="flex items-center gap-4 text-[10px] text-slate-600">
+            <span class="flex items-center gap-1.5"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> ALL SYSTEMS NOMINAL</span>
+        </div>
+    </footer>
+
+    <!-- ========================================== -->
+    <!-- JAVASCRIPT XỬ LÝ TOÀN BỘ LOGIC -->
+    <!-- ========================================== -->
+    <script>
+        const chatInput = document.getElementById('chat-input');
+        const chatContainer = document.getElementById('chat-container');
+        const terminalLogs = document.getElementById('terminal-logs');
+
+        // Bắt sự kiện Enter ở ô nhập Chat
+        if (chatInput) {
+            chatInput.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') handleManualSubmit();
+            });
+        }
+
+        function handleManualSubmit() {
+            handleChatSubmit(chatInput.value);
+        }
+
+        // --- LOGIC CHAT BẤT ĐỒNG BỘ (POLLING CHỐNG TIMEOUT) ---
+        async function handleChatSubmit(text) {
+            if (!text.trim()) return;
+
+            // 1. Gắn tin nhắn User
+            appendUserMessage(text);
+            chatInput.value = '';
+            chatInput.disabled = true;
+
+            // 2. Hiện trạng thái "AI đang phân tích..."
+            const typingId = 'typing-' + Date.now();
+            appendAITyping(typingId);
+
+            try {
+                // 3. Submit nhiệm vụ cho Backend (Nhanh, không chờ AI)
+                const submitRes = await fetch('/api/chat/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text })
+                });
+                const submitData = await submitRes.json();
+                
+                if (submitData.status !== 'success') {
+                    throw new Error("Không thể khởi tạo tiến trình AI.");
+                }
+
+                const taskId = submitData.task_id;
+
+                // 4. Polling liên tục mỗi 3 giây để hỏi kết quả
+                const pollInterval = setInterval(async () => {
+                    try {
+                        const statusRes = await fetch(`/api/chat/status/${taskId}`);
+                        const statusData = await statusRes.json();
+
+                        // Nếu AI đã làm xong (Thành công hoặc Lỗi)
+                        if (statusData.status === 'completed' || statusData.status === 'error') {
+                            clearInterval(pollInterval); // Dừng vòng lặp
+                            document.getElementById(typingId)?.remove(); // Xóa icon typing
+                            
+                            if (statusData.status === 'completed') {
+                                // Xử lý Markdown Code block/Line breaks
+                                const formattedResponse = statusData.response.replace(/\n/g, '<br>');
+                                appendAIMessage(formattedResponse);
+                            } else {
+                                appendAIMessage("Error: " + statusData.response);
+                            }
+                            
+                            chatInput.disabled = false;
+                            chatInput.focus();
+                        }
+                    } catch (pollError) {
+                        console.error("Lỗi Polling:", pollError);
+                    }
+                }, 3000);
+
+            } catch (error) {
+                document.getElementById(typingId)?.remove();
+                appendAIMessage("Mất kết nối API. Vui lòng kiểm tra lại Backend Server.");
+                chatInput.disabled = false;
+                chatInput.focus();
+            }
+        }
+
+        // --- CÁC HÀM VẼ GIAO DIỆN CHAT ---
+        function appendUserMessage(text) {
+            const div = document.createElement('div');
+            div.className = 'max-w-[85%] self-end mt-2';
+            div.innerHTML = `<div class="bg-primary text-white p-3 rounded-2xl rounded-tr-none text-[12px] shadow-lg shadow-primary/10">${text}</div>`;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function appendAIMessage(text) {
+            const div = document.createElement('div');
+            div.className = 'max-w-[85%] self-start mt-2';
+            div.innerHTML = `<div class="bg-slate-800 text-slate-200 p-3 rounded-2xl rounded-tl-none border border-slate-700 text-[12px]">${text}</div>`;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function appendAITyping(id) {
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = 'max-w-[85%] self-start mt-2';
+            div.innerHTML = `
+                <div class="bg-slate-800 text-slate-200 p-3 rounded-2xl rounded-tl-none border border-slate-700 text-[12px] flex items-center gap-1">
+                    <p class="font-bold text-primary italic">Analyzing</p>
+                    <div class="typing-dot w-1.5 h-1.5 bg-primary rounded-full ml-1"></div>
+                    <div class="typing-dot w-1.5 h-1.5 bg-primary rounded-full"></div>
+                    <div class="typing-dot w-1.5 h-1.5 bg-primary rounded-full"></div>
+                </div>`;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // --- LOGIC CẬP NHẬT LOG TERMINAL LIÊN TỤC ---
+        async function fetchLogs() {
+            try {
+                const res = await fetch('/api/logs');
+                const logs = await res.json();
+                terminalLogs.innerHTML = '';
+                
+                logs.reverse().forEach(log => {
+                    let colorClass = 'text-slate-400';
+                    if(log[1] === 'INFO') colorClass = 'text-blue-400';
+                    if(log[1] === 'WARN') colorClass = 'text-amber-400';
+                    if(log[1] === 'ERROR') colorClass = 'text-rose-500';
+                    if(log[1] === 'SUCCESS') colorClass = 'text-green-500';
+                    if(log[1] === 'AWAIT') colorClass = 'text-primary animate-pulse';
+                    
+                    terminalLogs.innerHTML += `
+                        <div class="flex gap-3">
+                            <span class="text-slate-600 shrink-0">[${log[3]}]</span>
+                            <span class="font-bold ${colorClass} shrink-0 w-12">${log[1]}</span>
+                            <span class="text-slate-300 break-words">${log[2]}</span>
+                        </div>`;
+                });
+                terminalLogs.innerHTML += '<div class="text-slate-700 blink-cursor font-bold mt-1">_</div>';
+                terminalLogs.scrollTop = terminalLogs.scrollHeight;
+            } catch(e) {
+                console.error("Lỗi tải logs:", e);
+            }
+        }
+
+        // Khởi động các vòng lặp khi load trang
+        window.onload = () => {
+            fetchLogs(); // Gọi lần đầu ngay lập tức
+            setInterval(fetchLogs, 2000); // Tự động load Log mỗi 2 giây
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>NebulaStack - Cloud Management Dashboard</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: { extend: {
+                colors: { "primary": "#3c83f6", "background-dark": "#101722" },
+                fontFamily: { "display": ["Inter"] },
+                borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }
+            }}
+        }
+    </script>
+    <style>
+        /* Đã gỡ bỏ overflow: hidden để cho phép cuộn trang thoải mái */
+        body { font-family: 'Inter', sans-serif; background-color: #101722; }
+    </style>
+</head>
+<body class="text-slate-100 font-display min-h-screen flex flex-col">
+<div class="flex flex-col min-h-screen">
+
+    <header class="flex items-center justify-between border-b border-slate-800 px-6 py-3 bg-background-dark sticky top-0 z-50">
+        <div class="flex items-center gap-10">
+            <div class="flex items-center gap-4">
+                <div class="text-primary">
+                    <svg class="w-8 h-8" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 4H17.3334V17.3334H30.6666V30.6666H44V44H4V4Z" fill="currentColor"/>
+                    </svg>
+                </div>
+                <h2 class="text-white text-xl font-bold tracking-tight">NebulaStack</h2>
+            </div>
+            <nav class="flex items-center gap-10">
+                <a class="text-primary text-sm font-semibold border-b-2 border-primary pb-1 cursor-pointer" onclick="window.location.href='/'">Dashboard</a>
+                <a class="text-slate-400 text-sm font-medium hover:text-primary transition-colors pb-1 cursor-pointer" onclick="window.location.href='/agent'">AI Agent</a>
+                <a class="text-slate-400 text-sm font-medium hover:text-primary transition-colors pb-1 cursor-pointer" onclick="window.location.href='/system-logs'">System Logs</a>
+            </nav>
+        </div>
+        <div class="flex items-center gap-3">
+            <div id="prom-badge" class="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-[10px] font-bold">
+                <span id="prom-dot" class="h-1.5 w-1.5 rounded-full bg-slate-500"></span>
+                <span id="prom-label" class="text-slate-500">Prometheus</span>
+            </div>
+            <div class="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 overflow-hidden">
+                <img alt="User Avatar" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAlUNI0dEQyycq3liWZePkCk3_8qcUTA49LmysAA87VYQZXCYAHTGFPHHZqfptWdf0XUN9VhYb49mbEZftvwlsWGNLhk8I-7fJTIEnRbGWUqnazBsJrsMDfg8hvjEeth-bnbuuQv4j0KMYu_R66CZlbMTNTnCyr7qsNYAOzFKcY0-EMp3LGyZDOAdCP_LjNnmiV4ggUJW-nGss8QsIEMvOS5qBHV_2W7s3tt50yfAJLZ3MdOscn-Sn1DPwWCQK47xieEKnw5C7B47_a"/>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 px-6 py-6 max-w-[1600px] mx-auto w-full flex flex-col gap-6">
+
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <div>
+                <h1 class="text-white text-2xl font-extrabold tracking-tight">System Overview</h1>
+                <p class="text-slate-400 text-xs mt-0.5">Real-time cloud infrastructure monitoring and analytics.</p>
+            </div>
+            <p id="last-updated" class="text-slate-600 text-[10px]">Updating...</p>
+        </div>
+
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 shadow-sm">
+                <div class="flex justify-between items-start mb-2">
+                    <p class="text-slate-400 text-xs font-medium">Total Instances</p>
+                    <span class="material-symbols-outlined text-primary text-[20px]">dns</span>
+                </div>
+                <p id="val-instances" class="text-2xl font-bold text-white mb-0.5">--</p>
+                <p class="text-emerald-500 text-xs font-bold flex items-center">
+                    <span class="material-symbols-outlined text-[14px] mr-1">trending_up</span>Live count
+                </p>
+            </div>
+            <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 shadow-sm">
+                <div class="flex justify-between items-start mb-2">
+                    <p class="text-slate-400 text-xs font-medium">System Health</p>
+                    <span id="health-icon" class="material-symbols-outlined text-emerald-500 text-[20px]">check_circle</span>
+                </div>
+                <p id="val-health" class="text-2xl font-bold text-emerald-500 mb-0.5">--</p>
+                <p id="health-sub" class="text-slate-400 text-xs font-medium flex items-center">
+                    <span class="material-symbols-outlined text-[14px] mr-1">horizontal_rule</span>Checking...
+                </p>
+            </div>
+            <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 shadow-sm">
+                <div class="flex justify-between items-start mb-2">
+                    <p class="text-slate-400 text-xs font-medium">Network I/O</p>
+                    <span class="material-symbols-outlined text-amber-500 text-[20px]">router</span>
+                </div>
+                <p id="val-network" class="text-2xl font-bold text-white mb-0.5">--</p>
+                <p id="net-sub" class="text-slate-400 text-xs font-medium flex items-center">
+                    <span class="material-symbols-outlined text-[14px] mr-1">swap_vert</span>RX + TX
+                </p>
+            </div>
+            <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 shadow-sm">
+                <div class="flex justify-between items-start mb-2">
+                    <p class="text-slate-400 text-xs font-medium">CPU Usage</p>
+                    <span class="material-symbols-outlined text-orange-500 text-[20px]">speed</span>
+                </div>
+                <p id="val-cpu" class="text-2xl font-bold text-white mb-0.5">--</p>
+                <p id="cpu-sub" class="text-slate-400 text-xs font-medium flex items-center">
+                    <span class="material-symbols-outlined text-[14px] mr-1">memory</span>-- cores
+                </p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div class="bg-slate-800/40 rounded-xl border border-slate-700 p-3 flex flex-col gap-1">
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] text-slate-400 font-semibold uppercase">CPU</span>
+                    <span id="badge-cpu" class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">--</span>
+                </div>
+                <p id="bar-cpu-val" class="text-sm font-bold text-white">--%</p>
+                <div class="h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                    <div id="bar-cpu" class="h-full rounded-full bg-orange-500 transition-all duration-500" style="width:0%"></div>
+                </div>
+                <p class="text-[9px] text-slate-500">WARN >85% · CRIT >95%</p>
+            </div>
+            <div class="bg-slate-800/40 rounded-xl border border-slate-700 p-3 flex flex-col gap-1">
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] text-slate-400 font-semibold uppercase">RAM Used</span>
+                    <span id="badge-ram" class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">--</span>
+                </div>
+                <p id="bar-ram-val" class="text-sm font-bold text-white">--%</p>
+                <div class="h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                    <div id="bar-ram" class="h-full rounded-full bg-blue-500 transition-all duration-500" style="width:0%"></div>
+                </div>
+                <p class="text-[9px] text-slate-500">WARN avail <15% · CRIT <5%</p>
+            </div>
+            <div class="bg-slate-800/40 rounded-xl border border-slate-700 p-3 flex flex-col gap-1">
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] text-slate-400 font-semibold uppercase">Disk</span>
+                    <span id="badge-disk" class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">--</span>
+                </div>
+                <p id="bar-disk-val" class="text-sm font-bold text-white">--%</p>
+                <div class="h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                    <div id="bar-disk" class="h-full rounded-full bg-violet-500 transition-all duration-500" style="width:0%"></div>
+                </div>
+                <p class="text-[9px] text-slate-500">WARN >80% · CRIT >90%</p>
+            </div>
+            <div class="bg-slate-800/40 rounded-xl border border-slate-700 p-3 flex flex-col gap-1">
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] text-slate-400 font-semibold uppercase">Network</span>
+                    <span id="badge-net" class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">--</span>
+                </div>
+                <p id="bar-net-val" class="text-sm font-bold text-white">-- Mbps</p>
+                <div class="h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                    <div id="bar-net" class="h-full rounded-full bg-amber-500 transition-all duration-500" style="width:0%"></div>
+                </div>
+                <p class="text-[9px] text-slate-500">WARN >80% · CRIT >95%</p>
+            </div>
+            <div class="bg-slate-800/40 rounded-xl border border-slate-700 p-3 flex flex-col gap-1">
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] text-slate-400 font-semibold uppercase">Load Avg</span>
+                    <span id="badge-load" class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">--</span>
+                </div>
+                <p id="bar-load-val" class="text-sm font-bold text-white">--</p>
+                <div class="h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                    <div id="bar-load" class="h-full rounded-full bg-teal-500 transition-all duration-500" style="width:0%"></div>
+                </div>
+                <p class="text-[9px] text-slate-500">WARN ×1.5 · CRIT ×2.0</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            
+            <div class="lg:col-span-3 flex flex-col gap-6">
+                <div class="w-full rounded-xl border border-slate-700 bg-background-dark overflow-hidden h-[350px]">
+                    <iframe 
+                        src="http://192.168.57.7:3000/d-solo/adx7zz8/node-exporter-full-copy?orgId=1&from=now-1h&to=now&timezone=browser&var-ds_prometheus=dfibyk582xfr4c&var-job=node&var-nodename=hoang&var-node=localhost:9100&refresh=10s&theme=dark&panelId=panel-77&__feature.dashboardScene=true&kiosk" 
+                        width="100%" 
+                        height="100%" 
+                        frameborder="0">
+                    </iframe>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="w-full rounded-xl border border-slate-700 bg-background-dark overflow-hidden h-[280px]">
+                        <iframe 
+                            src="http://192.168.57.7:3000/d-solo/adx7zz8/node-exporter-full-copy?orgId=1&from=now-1h&to=now&timezone=browser&var-ds_prometheus=dfibyk582xfr4c&var-job=node&var-nodename=hoang&var-node=localhost:9100&refresh=10s&theme=dark&panelId=panel-78&__feature.dashboardScene=true&kiosk" 
+                            width="100%" 
+                            height="100%" 
+                            frameborder="0">
+                        </iframe>
+                    </div>
+                    <div class="w-full rounded-xl border border-slate-700 bg-background-dark overflow-hidden h-[280px]">
+                        <iframe 
+                            src="http://192.168.57.7:3000/d-solo/adx7zz8/node-exporter-full-copy?orgId=1&from=now-1h&to=now&timezone=browser&var-ds_prometheus=dfibyk582xfr4c&var-job=node&var-nodename=hoang&var-node=localhost:9100&refresh=10s&theme=dark&panelId=panel-74&__feature.dashboardScene=true&kiosk" 
+                            width="100%" 
+                            height="100%" 
+                            frameborder="0">
+                        </iframe>
+                    </div>
+                </div>
+            </div>
+
+            <aside class="flex flex-col gap-6">
+                <div class="bg-slate-800/50 rounded-xl border border-slate-700 flex flex-col">
+                    <div class="px-4 py-3 border-b border-slate-700 flex justify-between items-center bg-slate-800/80 rounded-t-xl">
+                        <h3 class="font-bold text-[10px] tracking-widest uppercase text-slate-400">Critical Alerts</h3>
+                        <span id="alert-dot" class="flex h-2 w-2 rounded-full bg-slate-600"></span>
+                    </div>
+                    <div id="box-alerts" class="p-4 space-y-4">
+                        <div class="text-center text-xs text-slate-500 italic">Fetching alerts...</div>
+                    </div>
+                </div>
+                
+                <div class="bg-slate-800/50 rounded-xl border border-slate-700 flex flex-col">
+                    <div class="px-4 py-3 border-b border-slate-700 bg-slate-800/80 rounded-t-xl">
+                        <h3 class="font-bold text-[10px] tracking-widest uppercase text-slate-400">Host Node Status</h3>
+                    </div>
+                    <div id="box-nodes" class="p-4 space-y-3 max-h-[350px] overflow-y-auto">
+                        <div class="text-center text-xs text-slate-500 italic">Loading nodes...</div>
+                    </div>
+                    <div class="p-3 bg-slate-800/30 border-t border-slate-700 rounded-b-xl">
+                        <button class="w-full py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-[10px] font-bold rounded transition-colors uppercase tracking-tight">View All Nodes</button>
+                    </div>
+                </div>
+            </aside>
+            
+        </div>
+    </main>
+
+    <footer class="border-t border-slate-800 px-6 py-4 mt-auto">
+        <div class="max-w-[1600px] mx-auto flex flex-col md:flex-row justify-between items-center gap-4 text-slate-500 text-[10px]">
+            <p>© 2024 NebulaStack Infrastructure. All rights reserved.</p>
+            <div class="flex gap-6">
+                <a class="hover:text-primary transition-colors" href="#">API Documentation</a>
+                <a class="hover:text-primary transition-colors" href="#">Security Policy</a>
+                <a class="hover:text-primary transition-colors" href="#">Contact Support</a>
+            </div>
+            <div class="flex items-center gap-2">
+                <span id="footer-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                <span id="footer-status" class="uppercase font-medium tracking-tighter">All services operational</span>
+            </div>
+        </div>
+    </footer>
+</div>
+
+<script>
+    // ── helpers ──────────────────────────────────────────────────────────────
+    const LEVEL_COLORS = {
+        CRITICAL: { text: 'text-rose-500',   bg: 'bg-rose-500/10',   border: 'border-rose-500/30',   bar: 'bg-rose-500',   badge: 'bg-rose-500/20 text-rose-400' },
+        WARNING:  { text: 'text-amber-500',  bg: 'bg-amber-500/10',  border: 'border-amber-500/30',  bar: 'bg-amber-500',  badge: 'bg-amber-500/20 text-amber-400' },
+        OK:       { text: 'text-emerald-500',bg: 'bg-emerald-500/10',border: 'border-emerald-500/30',bar: 'bg-emerald-500',badge: 'bg-emerald-500/20 text-emerald-400' },
+        'N/A':    { text: 'text-slate-400',  bg: 'bg-slate-700',     border: 'border-slate-700',     bar: 'bg-slate-600',  badge: 'bg-slate-700 text-slate-400' },
+    };
+
+    function applyBadge(id, level) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const c = LEVEL_COLORS[level] || LEVEL_COLORS['N/A'];
+        el.className = `text-[9px] font-bold px-1.5 py-0.5 rounded ${c.badge}`;
+        el.innerText = level;
+    }
+
+    function setBar(id, pct, level) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const c = LEVEL_COLORS[level] || LEVEL_COLORS['N/A'];
+        el.style.width = Math.min(pct, 100) + '%';
+        el.className = `h-full rounded-full transition-all duration-500 ${c.bar}`;
+    }
+
+    // ── main fetch ────────────────────────────────────────────────────────────
+    async function loadDashboardData() {
+        try {
+            const response = await fetch('/api/dashboard/overview');
+            const result   = await response.json();
+            if (result.status !== 'success') return;
+            const m = result.data.metrics;
+
+            // ── Prometheus badge ─────────────────────────────────────────────
+            const promOk = m.prometheus_ok !== false;
+            document.getElementById('prom-dot').className   = `h-1.5 w-1.5 rounded-full ${promOk ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'}`;
+            document.getElementById('prom-label').className = `text-[10px] font-bold ${promOk ? 'text-emerald-500' : 'text-rose-500'}`;
+            document.getElementById('prom-label').innerText = promOk ? 'Prometheus ●' : 'Prometheus ✕';
+
+            // ── Card 1: Total Instances ──────────────────────────────────────
+            document.getElementById('val-instances').innerText = m.total_instances ?? '--';
+
+            // ── Card 2: System Health (worst across all 5 metrics) ──────────
+            const levels = [m.cpu_level, m.ram_level, m.disk_level, m.net_level, m.load_level];
+            const worst  = levels.includes('CRITICAL') ? 'CRITICAL' : levels.includes('WARNING') ? 'WARNING' : 'OK';
+            const hc     = LEVEL_COLORS[worst];
+            const healthEl = document.getElementById('val-health');
+            healthEl.className = `text-2xl font-bold mb-0.5 ${hc.text}`;
+            healthEl.innerText = worst === 'OK' ? 'Healthy' : worst;
+            document.getElementById('health-icon').className = `material-symbols-outlined text-[20px] ${hc.text}`;
+            document.getElementById('health-icon').innerText = worst === 'CRITICAL' ? 'warning' : worst === 'WARNING' ? 'report_problem' : 'check_circle';
+            document.getElementById('health-sub').innerHTML  = `<span class="material-symbols-outlined text-[14px] mr-1">monitor_heart</span>CPU·RAM·Disk·Net·Load`;
+
+            // ── Card 3: Network I/O ──────────────────────────────────────────
+            const netTotal = ((m.rx ?? 0) + (m.tx ?? 0)).toFixed(2);
+            document.getElementById('val-network').innerText = netTotal + ' Mbps';
+            const nc = LEVEL_COLORS[m.net_level] || LEVEL_COLORS['N/A'];
+            document.getElementById('val-network').className = `text-2xl font-bold mb-0.5 ${nc.text}`;
+            document.getElementById('net-sub').innerHTML = `<span class="material-symbols-outlined text-[14px] mr-1">arrow_downward</span>${(m.rx ?? 0).toFixed(1)} RX  <span class="material-symbols-outlined text-[14px] mr-1">arrow_upward</span>${(m.tx ?? 0).toFixed(1)} TX`;
+
+            // ── Card 4: CPU ──────────────────────────────────────────────────
+            const cc = LEVEL_COLORS[m.cpu_level] || LEVEL_COLORS['N/A'];
+            document.getElementById('val-cpu').className = `text-2xl font-bold mb-0.5 ${cc.text}`;
+            document.getElementById('val-cpu').innerText = m.cpu_pct !== null ? m.cpu_pct + '%' : '--';
+            document.getElementById('cpu-sub').innerHTML = `<span class="material-symbols-outlined text-[14px] mr-1">memory</span>${m.cpu_cores ?? '--'} cores`;
+
+            // ── 5-Metric status bar ──────────────────────────────────────────
+            applyBadge('badge-cpu', m.cpu_level ?? 'N/A');
+            document.getElementById('bar-cpu-val').innerText = m.cpu_pct !== null ? m.cpu_pct + '%' : '--';
+            setBar('bar-cpu', m.cpu_pct ?? 0, m.cpu_level);
+
+            const ramUsed = m.ram_used_pct ?? (m.ram_avail_pct !== null ? 100 - m.ram_avail_pct : null);
+            applyBadge('badge-ram', m.ram_level ?? 'N/A');
+            document.getElementById('bar-ram-val').innerText = ramUsed !== null ? ramUsed.toFixed(1) + '% used' : '--';
+            setBar('bar-ram', ramUsed ?? 0, m.ram_level);
+
+            applyBadge('badge-disk', m.disk_level ?? 'N/A');
+            document.getElementById('bar-disk-val').innerText = m.disk_used_pct !== null ? m.disk_used_pct + '%' : '--';
+            setBar('bar-disk', m.disk_used_pct ?? 0, m.disk_level);
+
+            applyBadge('badge-net', m.net_level ?? 'N/A');
+            document.getElementById('bar-net-val').innerText = netTotal + ' Mbps';
+            setBar('bar-net', m.net_util_pct ?? 0, m.net_level);
+
+            applyBadge('badge-load', m.load_level ?? 'N/A');
+            const loadPct = m.cpu_cores ? Math.min(((m.load1 ?? 0) / (m.cpu_cores * 2)) * 100, 100) : 0;
+            document.getElementById('bar-load-val').innerText = m.load1 !== null ? `${m.load1} (${m.load5}/${m.load15})` : '--';
+            setBar('bar-load', loadPct, m.load_level);
+
+            // ── Critical Alerts box ──────────────────────────────────────────
+            const alertsBox = document.getElementById('box-alerts');
+            const hasCrit   = worst !== 'OK';
+            document.getElementById('alert-dot').className = `flex h-2 w-2 rounded-full ${hasCrit ? 'bg-rose-500 animate-pulse' : 'bg-slate-600'}`;
+
+            if (!hasCrit) {
+                alertsBox.innerHTML = '<div class="text-center text-xs text-slate-500 italic py-2">System is running smoothly. No alerts.</div>';
+            } else {
+                const metricAlerts = [
+                    { label: 'CPU',     level: m.cpu_level,  detail: `${m.cpu_pct}% usage` },
+                    { label: 'RAM',     level: m.ram_level,  detail: `${m.ram_avail_pct}% available` },
+                    { label: 'Disk',    level: m.disk_level, detail: `${m.disk_used_pct}% used` },
+                    { label: 'Network', level: m.net_level,  detail: `${m.net_util_pct}% utilisation` },
+                    { label: 'Load',    level: m.load_level, detail: `avg ${m.load1} / ${m.cpu_cores} cores` },
+                ].filter(a => a.level === 'CRITICAL' || a.level === 'WARNING');
+
+                alertsBox.innerHTML = metricAlerts.map(a => {
+                    const icon  = a.level === 'CRITICAL' ? 'warning' : 'report_problem';
+                    const color = a.level === 'CRITICAL' ? 'text-rose-500' : 'text-amber-500';
+                    const bg    = a.level === 'CRITICAL' ? 'bg-rose-500/5 border-rose-500/20' : 'bg-amber-500/5 border-amber-500/20';
+                    return `<div class="flex gap-3 p-2 rounded-lg border ${bg}">
+                        <span class="material-symbols-outlined ${color} shrink-0 text-[18px] mt-0.5">${icon}</span>
+                        <div>
+                            <p class="text-xs font-semibold text-slate-200">${a.label} — ${a.level}</p>
+                            <p class="text-[10px] text-slate-400">${a.detail}</p>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+
+            // ── Host Nodes ───────────────────────────────────────────────────
+            const nodesBox  = document.getElementById('box-nodes');
+            const nodesList = result.data.nodes;
+            if (!nodesList || nodesList.length === 0) {
+                nodesBox.innerHTML = '<div class="text-center text-xs text-slate-500 italic">No hosts registered.</div>';
+            } else {
+                nodesBox.innerHTML = nodesList.map(n => {
+                    const dot  = n.status === 'ACTIVE' ? 'bg-emerald-500' : n.status === 'WARNING' ? 'bg-amber-500' : 'bg-rose-500';
+                    const txt  = n.status === 'ACTIVE' ? 'text-emerald-500' : n.status === 'WARNING' ? 'text-amber-500' : 'text-rose-500';
+                    return `<div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <div class="w-1.5 h-1.5 rounded-full ${dot}"></div>
+                            <span class="text-xs text-slate-300 font-mono">${n.ip}</span>
+                        </div>
+                        <span class="text-[9px] font-bold ${txt} uppercase">${n.status}</span>
+                    </div>`;
+                }).join('');
+            }
+
+            // ── Footer ───────────────────────────────────────────────────────
+            document.getElementById('footer-dot').className    = `w-1.5 h-1.5 rounded-full ${worst === 'OK' ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'}`;
+            document.getElementById('footer-status').innerText = worst === 'OK' ? 'All services operational' : `${worst} detected`;
+            document.getElementById('last-updated').innerText  = 'Updated: ' + new Date().toLocaleTimeString();
+
+        } catch (error) {
+            console.error("Dashboard fetch error:", error);
+        }
+    }
+
+    window.onload = () => {
+        loadDashboardData();
+        setInterval(loadDashboardData, 5000);
+    };
+</script>
+</body>
+</html>
