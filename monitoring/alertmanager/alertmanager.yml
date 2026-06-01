@@ -1,0 +1,49 @@
+global:
+  resolve_timeout: 2m
+
+route:
+  receiver: sre-log-only
+  group_by:
+    - alertname
+    - instance
+    - metric
+    - scenario
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 10m
+  routes:
+    - receiver: ai-agent-webhook
+      matchers:
+        - owner="ai-agent"
+      continue: false
+
+    - receiver: sre-log-only
+      matchers:
+        - owner="sre"
+      continue: false
+
+inhibit_rules:
+  - source_matchers:
+      - severity="critical"
+    target_matchers:
+      - severity="warning"
+    equal:
+      - instance
+      - metric
+
+receivers:
+  - name: ai-agent-webhook
+    webhook_configs:
+      - url: "http://10.0.100.226:8000/api/agent/prometheus-webhook"
+        send_resolved: true
+        max_alerts: 10
+        http_config:
+          follow_redirects: true
+
+  - name: sre-log-only
+    webhook_configs:
+      - url: "http://10.0.100.226:8000/api/agent/prometheus-webhook"
+        send_resolved: true
+        max_alerts: 10
+
+templates: []

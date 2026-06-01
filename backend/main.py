@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 from fastapi import FastAPI, BackgroundTasks
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
 from crewai import Agent, Task, Crew, Process, LLM
@@ -35,6 +35,52 @@ app.include_router(agent_api.router,    prefix="/api/agent")
 @app.get("/api/logs")
 async def get_logs():
     return get_recent_logs(20)
+
+
+@app.get("/health")
+async def health():
+    return {
+        "status": "ok",
+        "service": "nebulastack-aiops",
+        "agent_running": _worker.is_running,
+        "agent_phase": _worker.state.get("current_phase"),
+    }
+
+
+@app.get("/metrics", response_class=PlainTextResponse)
+async def metrics():
+    state = _worker.state
+    metric_state = state.get("metrics", {})
+    phase = state.get("current_phase", "UNKNOWN")
+    status = state.get("analysis", {}).get("status", "UNKNOWN")
+    alerts = state.get("alerts", [])
+    lines = [
+        "# HELP ai_agent_up AIAgentWorker running state.",
+        "# TYPE ai_agent_up gauge",
+        f"ai_agent_up {1 if _worker.is_running else 0}",
+        "# HELP ai_agent_autonomous_mode Autonomous execution mode.",
+        "# TYPE ai_agent_autonomous_mode gauge",
+        f"ai_agent_autonomous_mode {1 if _worker.autonomous_mode else 0}",
+        "# HELP ai_agent_metric Current metric values collected by the AI worker.",
+        "# TYPE ai_agent_metric gauge",
+        f'ai_agent_metric{{metric="cpu_pct"}} {float(metric_state.get("cpu", 0.0))}',
+        f'ai_agent_metric{{metric="ram_avail_pct"}} {float(metric_state.get("ram_avail_pct", 100.0))}',
+        f'ai_agent_metric{{metric="disk_used_pct"}} {float(metric_state.get("disk_used_pct", 0.0))}',
+        f'ai_agent_metric{{metric="net_util_pct"}} {float(metric_state.get("net_util_pct", 0.0))}',
+        f'ai_agent_metric{{metric="load1"}} {float(metric_state.get("load1", 0.0))}',
+        f'ai_agent_metric{{metric="cpu_cores"}} {float(metric_state.get("cpu_cores", 1.0))}',
+        "# HELP ai_agent_alerts Active AI agent alerts by level.",
+        "# TYPE ai_agent_alerts gauge",
+        f'ai_agent_alerts{{level="warning"}} {sum(1 for a in alerts if a.get("level") == "WARNING")}',
+        f'ai_agent_alerts{{level="critical"}} {sum(1 for a in alerts if a.get("level") == "CRITICAL")}',
+        "# HELP ai_agent_plan_steps Current remediation plan size.",
+        "# TYPE ai_agent_plan_steps gauge",
+        f"ai_agent_plan_steps {len(state.get('plan', []))}",
+        "# HELP ai_agent_phase Current AI agent phase as an info metric.",
+        "# TYPE ai_agent_phase gauge",
+        f'ai_agent_phase{{phase="{phase}",status="{status}"}} 1',
+    ]
+    return "\n".join(lines) + "\n"
 
 
 task_store: dict = {}

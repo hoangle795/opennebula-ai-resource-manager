@@ -1,0 +1,192 @@
+groups:
+  - name: nt114-aiops-host-capacity
+    interval: 10s
+    rules:
+      - alert: HostCPUWarning
+        expr: 100 - (avg by (instance, nodename) (rate(node_cpu_seconds_total{job="node",mode="idle"}[2m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+          metric: cpu
+          scenario: "1"
+          owner: ai-agent
+        annotations:
+          summary: "CPU warning on {{ $labels.instance }}"
+          description: "CPU usage is above 85% for 5 minutes. Current value={{ printf \"%.1f\" $value }}%."
+          runbook: "Check top CPU processes and VM placement before scaling."
+
+      - alert: HostHighCPU
+        expr: 100 - (avg by (instance, nodename) (rate(node_cpu_seconds_total{job="node",mode="idle"}[2m])) * 100) > 95
+        for: 2m
+        labels:
+          severity: critical
+          metric: cpu
+          scenario: "1"
+          owner: ai-agent
+        annotations:
+          summary: "CPU critical on {{ $labels.instance }}"
+          description: "CPU usage is above 95% for 2 minutes. Current value={{ printf \"%.1f\" $value }}%."
+          expected_result: "Prometheus fires alert, Alertmanager calls FastAPI, AI Agent analyzes and proposes remediation."
+          demo_command: "stress-ng --cpu 0 --timeout 180s --metrics-brief"
+
+      - alert: HostMemoryWarning
+        expr: (node_memory_MemAvailable_bytes{job="node"} / node_memory_MemTotal_bytes{job="node"}) * 100 < 15
+        for: 2m
+        labels:
+          severity: warning
+          metric: ram
+          scenario: "2"
+          owner: ai-agent
+        annotations:
+          summary: "Available RAM warning on {{ $labels.instance }}"
+          description: "Available RAM is below 15% for 2 minutes. Current value={{ printf \"%.1f\" $value }}%."
+          runbook: "Review VM memory allocation, ballooning, and unnecessary workloads."
+
+      - alert: HostLowMemory
+        expr: (node_memory_MemAvailable_bytes{job="node"} / node_memory_MemTotal_bytes{job="node"}) * 100 < 5
+        for: 1m
+        labels:
+          severity: critical
+          metric: ram
+          scenario: "2"
+          owner: ai-agent
+        annotations:
+          summary: "Available RAM critical on {{ $labels.instance }}"
+          description: "Available RAM is below 5% for 1 minute. Current value={{ printf \"%.1f\" $value }}%."
+          expected_result: "AI Agent detects memory pressure and recommends VM redistribution or stopping unnecessary VMs."
+          demo_command: "Create multiple OpenNebula VMs or run a controlled memory stress test."
+
+      - alert: HostDiskWarning
+        expr: max by (instance, nodename, mountpoint) (100 - (node_filesystem_avail_bytes{job="node",fstype!~"tmpfs|overlay|squashfs",mountpoint!~"/run.*|/var/lib/docker.*"} / node_filesystem_size_bytes{job="node",fstype!~"tmpfs|overlay|squashfs",mountpoint!~"/run.*|/var/lib/docker.*"} * 100)) > 80
+        for: 5m
+        labels:
+          severity: warning
+          metric: disk
+          owner: ai-agent
+        annotations:
+          summary: "Disk usage warning on {{ $labels.instance }} {{ $labels.mountpoint }}"
+          description: "Disk usage is above 80% for 5 minutes. Current value={{ printf \"%.1f\" $value }}%."
+
+      - alert: HostDiskCritical
+        expr: max by (instance, nodename, mountpoint) (100 - (node_filesystem_avail_bytes{job="node",fstype!~"tmpfs|overlay|squashfs",mountpoint!~"/run.*|/var/lib/docker.*"} / node_filesystem_size_bytes{job="node",fstype!~"tmpfs|overlay|squashfs",mountpoint!~"/run.*|/var/lib/docker.*"} * 100)) > 90
+        for: 2m
+        labels:
+          severity: critical
+          metric: disk
+          owner: ai-agent
+        annotations:
+          summary: "Disk usage critical on {{ $labels.instance }} {{ $labels.mountpoint }}"
+          description: "Disk usage is above 90% for 2 minutes. Current value={{ printf \"%.1f\" $value }}%."
+
+      - alert: HostNetworkWarning
+        expr: ((sum by (instance, nodename) (rate(node_network_receive_bytes_total{job="node",device!="lo"}[1m]) + rate(node_network_transmit_bytes_total{job="node",device!="lo"}[1m])) * 8) / 1000000000) * 100 > 80
+        for: 3m
+        labels:
+          severity: warning
+          metric: network
+          owner: ai-agent
+        annotations:
+          summary: "Network utilization warning on {{ $labels.instance }}"
+          description: "Network utilization is above 80% of configured 1Gbps capacity. Current value={{ printf \"%.1f\" $value }}%."
+
+      - alert: HostNetworkCritical
+        expr: ((sum by (instance, nodename) (rate(node_network_receive_bytes_total{job="node",device!="lo"}[1m]) + rate(node_network_transmit_bytes_total{job="node",device!="lo"}[1m])) * 8) / 1000000000) * 100 > 95
+        for: 1m
+        labels:
+          severity: critical
+          metric: network
+          owner: ai-agent
+        annotations:
+          summary: "Network utilization critical on {{ $labels.instance }}"
+          description: "Network utilization is above 95% of configured 1Gbps capacity. Current value={{ printf \"%.1f\" $value }}%."
+
+      - alert: HostLoadWarning
+        expr: node_load1{job="node"} / count by (instance, nodename) (node_cpu_seconds_total{job="node",mode="idle"}) > 1.5
+        for: 5m
+        labels:
+          severity: warning
+          metric: load_avg
+          owner: ai-agent
+        annotations:
+          summary: "Load average warning on {{ $labels.instance }}"
+          description: "1m load average is above cores x 1.5 for 5 minutes. Current ratio={{ printf \"%.2f\" $value }}."
+
+      - alert: HostLoadCritical
+        expr: node_load1{job="node"} / count by (instance, nodename) (node_cpu_seconds_total{job="node",mode="idle"}) > 2
+        for: 2m
+        labels:
+          severity: critical
+          metric: load_avg
+          owner: ai-agent
+        annotations:
+          summary: "Load average critical on {{ $labels.instance }}"
+          description: "1m load average is above cores x 2.0 for 2 minutes. Current ratio={{ printf \"%.2f\" $value }}."
+
+  - name: nt114-aiops-platform-health
+    interval: 10s
+    rules:
+      - alert: NodeExporterDown
+        expr: up{job="node"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          metric: exporter
+          owner: sre
+        annotations:
+          summary: "Node Exporter down on {{ $labels.instance }}"
+          description: "Prometheus cannot scrape node-exporter for 1 minute."
+
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: warning
+          metric: scrape
+          owner: sre
+        annotations:
+          summary: "Prometheus target down: {{ $labels.job }}/{{ $labels.instance }}"
+          description: "A Prometheus scrape target has been unavailable for 1 minute."
+
+      - alert: AlertmanagerDown
+        expr: up{job="alertmanager"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          metric: alertmanager
+          owner: sre
+        annotations:
+          summary: "Alertmanager is down"
+          description: "Prometheus cannot reach Alertmanager for 1 minute."
+
+      - alert: AIAgentBackendDown
+        expr: up{job="aiops-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          metric: ai_backend
+          owner: sre
+        annotations:
+          summary: "AIOps FastAPI backend is down"
+          description: "Prometheus cannot scrape the FastAPI /metrics endpoint for 1 minute."
+
+      - alert: AIAgentWorkerStopped
+        expr: ai_agent_up{job="aiops-backend"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          metric: ai_worker
+          owner: sre
+        annotations:
+          summary: "AI Agent worker is not running"
+          description: "FastAPI is reachable, but AIAgentWorker reports ai_agent_up=0."
+
+      - alert: AIAgentWaitingApprovalTooLong
+        expr: ai_agent_plan_steps{job="aiops-backend"} > 0
+        for: 10m
+        labels:
+          severity: warning
+          metric: approval
+          owner: ai-agent
+        annotations:
+          summary: "AI Agent plan waiting for approval too long"
+          description: "A remediation plan has been present for more than 10 minutes without approval or dismissal."

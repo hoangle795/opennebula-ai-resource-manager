@@ -65,7 +65,7 @@ async def get_dashboard_overview():
     # Network — sum tất cả interface, bỏ loopback (giống ai_worker)
     rx_bps       = _prom('sum(rate(node_network_receive_bytes_total{device!="lo"}[1m]))',  0.0)
     tx_bps       = _prom('sum(rate(node_network_transmit_bytes_total{device!="lo"}[1m]))', 0.0)
-    net_util_pct = ((rx_bps + tx_bps) / MAX_NETWORK_BW_BPS) * 100
+    net_util_pct = (((rx_bps + tx_bps) * 8) / MAX_NETWORK_BW_BPS) * 100
 
     # Load Average
     load1  = _prom("node_load1")

@@ -125,7 +125,7 @@ class AIAgentWorker:
         snap.rx_mbps = (rx * 8) / 1_000_000
         snap.tx_mbps = (tx * 8) / 1_000_000
         
-        snap.net_util_pct = ((rx + tx) / MAX_NETWORK_BW_BPS) * 100
+        snap.net_util_pct = (((rx + tx) * 8) / MAX_NETWORK_BW_BPS) * 100
         snap.cpu_cores = int(self._prom('count(node_cpu_seconds_total{mode="idle"})', 1))
         snap.load1     = self._prom("node_load1", 0.0)
         return snap
@@ -200,6 +200,10 @@ class AIAgentWorker:
         self.is_running = True
         add_log("INFO", "MAPE-K loop started — monitoring 5 metrics.")
         while self.is_running:
+            if self.state.get("current_phase") == "WAITING_APPROVAL":
+                time.sleep(1)
+                continue
+
             self.state["current_phase"] = "MONITOR"
             snap = self._collect()
             
