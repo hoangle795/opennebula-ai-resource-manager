@@ -16,7 +16,7 @@ from crewai.tools import BaseTool
 
 from api import dashboard_api, agent_api
 from ai_worker import AIAgentWorker
-from database import init_db, get_recent_logs
+from database import init_db, get_recent_logs, add_log
 from config import GROQ_API_KEY
 
 os.environ.setdefault("GROQ_API_KEY", GROQ_API_KEY)
@@ -242,7 +242,6 @@ async def _run_chat_async(task_id: str, user_msg: str):
         )
 
         crew = Crew(agents=[agent], tasks=[task], process=Process.sequential)
-        loop = asyncio.get_event_loop()
 
         def _kickoff_retry(max_retries: int = 4):
             for attempt in range(max_retries):
@@ -260,7 +259,8 @@ async def _run_chat_async(task_id: str, user_msg: str):
                             continue
                     raise
 
-        result = await loop.run_in_executor(None, _kickoff_retry)
+        # FIX 1: asyncio.get_event_loop() deprecated in Python 3.10+
+        result = await asyncio.to_thread(_kickoff_retry)
         task_store[task_id] = {"status": "completed", "response": str(result)}
 
     except Exception as exc:
@@ -282,6 +282,69 @@ async def submit_chat(req: ChatMessage, background_tasks: BackgroundTasks):
 @app.get("/api/chat/status/{task_id}")
 async def get_chat_status(task_id: str):
     return task_store.get(task_id) or {"status": "error", "response": "Task not found."}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ALERTMANAGER WEBHOOK  (alertmanager.yml → url: .../api/agent/prometheus-webhook)
+# ══════════════════════════════════════════════════════════════════════════════
+
+class _AMAlert(BaseModel):
+    """Một alert entry trong payload của Alertmanager."""
+    status:       str  = "firing"
+    labels:       dict = {}
+    annotations:  dict = {}
+    startsAt:     str  = ""
+    endsAt:       str  = ""
+    fingerprint:  str  = ""
+    generatorURL: str  = ""
+
+class _AMPayload(BaseModel):
+    """Toàn bộ payload POST từ Alertmanager."""
+    receiver:           str         = ""
+    status:             str         = "firing"
+    alerts:             list[_AMAlert] = []
+    groupLabels:        dict        = {}
+    commonLabels:       dict        = {}
+    commonAnnotations:  dict        = {}
+    externalURL:        str         = ""
+    version:            str         = "4"
+    groupKey:           str         = ""
+
+
+@app.post("/api/agent/prometheus-webhook", status_code=200)
+async def prometheus_webhook(payload: _AMPayload):
+    """
+    Nhận webhook từ Alertmanager.
+    - Log tất cả alerts vào DB.
+    - Nếu có firing alert → đánh thức MAPE-K loop ngay lập tức
+      (thông qua _worker._alert_event nếu ai_worker hỗ trợ).
+    """
+    firing   = [a for a in payload.alerts if a.status == "firing"]
+    resolved = [a for a in payload.alerts if a.status == "resolved"]
+
+    for a in resolved:
+        name = a.labels.get("alertname", "Unknown")
+        add_log("SUCCESS", f"[Alertmanager RESOLVED] {name}")
+
+    for a in firing:
+        name     = a.labels.get("alertname", "Unknown")
+        severity = a.labels.get("severity", "warning").upper()
+        desc     = a.annotations.get("description", name)[:150]
+        level    = "ERROR" if severity == "CRITICAL" else "WARN"
+        add_log(level, f"[Alertmanager] {name} ({severity}): {desc}")
+
+    # Đánh thức MAPE-K loop sớm (không chờ hết MONITOR_INTERVAL)
+    if firing and _worker:
+        if hasattr(_worker, "_alert_event"):          # ai_worker có threading.Event
+            _worker._alert_event.set()
+        # Nếu không có _alert_event → loop sẽ tự pick up ở chu kỳ kế tiếp
+
+    return {
+        "status":   "ok",
+        "received": len(payload.alerts),
+        "firing":   len(firing),
+        "resolved": len(resolved),
+    }
 
 
 # ── Frontend ──────────────────────────────────────────────────────────────────
