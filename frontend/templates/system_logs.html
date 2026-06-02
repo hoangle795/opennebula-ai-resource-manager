@@ -143,10 +143,18 @@
                         </button>
                     </div>
                     <div class="flex flex-wrap gap-2 mt-2">
-                        <button onclick="handleChatSubmit('Tình trạng hệ thống hiện tại?')"    class="text-[9px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700 font-bold uppercase transition-all">System Status</button>
-                        <button onclick="handleChatSubmit('CPU đang cao, phải làm gì?')"        class="text-[9px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700 font-bold uppercase transition-all">CPU High</button>
-                        <button onclick="handleChatSubmit('Scale Cluster như thế nào?')"        class="text-[9px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700 font-bold uppercase transition-all">Scale Cluster</button>
-                        <button onclick="handleChatSubmit('RAM sắp hết, cần làm gì ngay?')"    class="text-[9px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700 font-bold uppercase transition-all">RAM Low</button>
+                        <button onclick="handleChatSubmit('What is the current system health status across all metrics?')"
+                            class="text-[9px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700 font-bold uppercase transition-all">System Status</button>
+                        <button onclick="handleChatSubmit('CPU usage is high. What are the recommended actions to resolve it?')"
+                            class="text-[9px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700 font-bold uppercase transition-all">CPU High</button>
+                        <button onclick="handleChatSubmit('RAM available is critically low. What should I do immediately?')"
+                            class="text-[9px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700 font-bold uppercase transition-all">RAM Low</button>
+                        <button onclick="handleChatSubmit('How do I scale the OpenNebula cluster to reduce load?')"
+                            class="text-[9px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700 font-bold uppercase transition-all">Scale Cluster</button>
+                        <button onclick="handleChatSubmit('Disk usage is above 80%. What are the recommended steps to free up space?')"
+                            class="text-[9px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700 font-bold uppercase transition-all">Disk Full</button>
+                        <button onclick="handleChatSubmit('Load average is too high. Which VMs should I migrate and to which host?')"
+                            class="text-[9px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700 font-bold uppercase transition-all">High Load</button>
                     </div>
                 </div>
             </section>
