@@ -15,6 +15,16 @@ MAX_NETWORK_BW_BPS = int(os.getenv("MAX_NETWORK_BW_BPS", str(1_000_000_000)))  #
 # ── Monitoring loop interval (seconds) ────────────────────────────────────
 MONITOR_INTERVAL = int(os.getenv("MONITOR_INTERVAL", "30"))
 
+# ── SSH — dùng cho process_tools.py (xem top process + kill process) ───────
+# Đây phải là máy đang được Prometheus giám sát (host chạy node_exporter),
+# KHÔNG phải máy chạy backend FastAPI.
+# IP 192.168.57.9 = host-node thực tế (nơi chạy stress-ng demo + node_exporter)
+TARGET_HOST         = os.getenv("TARGET_HOST",         "192.168.57.9")
+TARGET_SSH_USER     = os.getenv("TARGET_SSH_USER",     "")   # đặt trong .env
+TARGET_SSH_PASSWORD = os.getenv("TARGET_SSH_PASSWORD", "")   # đặt trong .env, KHÔNG hardcode
+TARGET_SSH_PORT     = int(os.getenv("TARGET_SSH_PORT", "22"))
+TARGET_SSH_KEY_PATH = os.getenv("TARGET_SSH_KEY_PATH", "")   # nếu dùng SSH key thay password
+
 # ── Alert thresholds ───────────────────────────────────────────────────────
 #
 #  Metric            Source          WARNING             CRITICAL

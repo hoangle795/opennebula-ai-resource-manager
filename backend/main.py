@@ -2,7 +2,6 @@ import os
 import uuid
 import asyncio
 import time
-import json
 import re
 from dotenv import load_dotenv
 
@@ -112,10 +111,10 @@ class LiveMetricsTool(BaseTool):
         w = agent_api._agent
         if not w:
             return "ERROR: Worker agent not running."
-        m       = w.state["metrics"]
-        alerts  = w.state["alerts"]
-        analysis= w.state["analysis"]
-        phase   = w.state["current_phase"]
+        m        = w.state["metrics"]
+        alerts   = w.state["alerts"]
+        analysis = w.state["analysis"]
+        phase    = w.state["current_phase"]
 
         lines = [
             "=== LIVE SYSTEM METRICS (real data from Prometheus) ===",
@@ -136,6 +135,50 @@ class LiveMetricsTool(BaseTool):
             for a in alerts:
                 lines.append(f"  [{a['level']}] {a['metric'].upper()}: {a['message']}")
         return "\n".join(lines)
+
+
+class TopProcessesTool(BaseTool):
+    name: str        = "get_top_processes"
+    description: str = (
+        "Returns the list of processes consuming the most CPU/RAM on the monitored "
+        "host right now (PID, command name, %CPU, %MEM, uptime). "
+        "ALWAYS call this tool when the admin asks 'what is causing high CPU/RAM' "
+        "or 'which app is doing this'. This gives real process-level visibility "
+        "that get_live_metrics() does not have."
+    )
+    args_schema: type[BaseModel] = _NoArgs
+
+    def _run(self, execute: bool = True, **kwargs) -> str:
+        from process_tools import get_top_processes
+        return get_top_processes(limit=8)
+
+
+class KillProcessTool(BaseTool):
+    name: str        = "kill_process"
+    description: str = (
+        "ACTUALLY KILLS a running process on the monitored host (kill -9). "
+        "This is a REAL DESTRUCTIVE ACTION, not advisory. "
+        "Provide either pid (int) or name (str) of the process. "
+        "CRITICAL RULE: set confirm=true ONLY if the admin's message in this "
+        "conversation explicitly says to kill/stop/terminate that process "
+        "(e.g. 'kill it', 'yes, terminate PID 1234', 'stop stress-ng'). "
+        "If the admin has not explicitly confirmed killing in their message, "
+        "call this tool with confirm=false to get the safe confirmation prompt — "
+        "NEVER set confirm=true based on your own judgment alone. "
+        "System-critical processes (systemd, sshd, dockerd, prometheus, etc.) "
+        "are automatically protected and will be refused."
+    )
+
+    class _KillArgs(BaseModel):
+        pid:     int  = Field(default=None, description="PID of the process to kill (preferred if known).")
+        name:    str  = Field(default=None, description="Process name to kill if PID is unknown.")
+        confirm: bool = Field(default=False, description="Set true ONLY if admin explicitly confirmed killing in their message.")
+
+    args_schema: type[BaseModel] = _KillArgs
+
+    def _run(self, pid: int = None, name: str = None, confirm: bool = False, **kwargs) -> str:
+        from process_tools import kill_process
+        return kill_process(pid=pid, name=name, confirm=confirm)
 
 
 class ScaleClusterTool(BaseTool):
@@ -190,8 +233,11 @@ class MigrateVMTool(BaseTool):
         )
 
 
-_CHAT_TOOLS  = [LiveMetricsTool(), ScaleClusterTool(), RestartNodesTool(), MigrateVMTool()]
-_TOOL_NAMES  = ", ".join(t.name for t in _CHAT_TOOLS)
+_CHAT_TOOLS = [
+    LiveMetricsTool(), TopProcessesTool(), KillProcessTool(),
+    ScaleClusterTool(), RestartNodesTool(), MigrateVMTool(),
+]
+_TOOL_NAMES = ", ".join(t.name for t in _CHAT_TOOLS)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -211,14 +257,20 @@ async def _run_chat_async(task_id: str, user_msg: str):
             role="AIOps Advisor",
             goal=(
                 "Answer admin questions about system health using ONLY real data "
-                "from get_live_metrics(). Provide recommendations — never execute actions."
+                "from get_live_metrics() and get_top_processes(). "
+                "Recommend actions; only execute kill_process when explicitly confirmed."
             ),
             backstory=(
                 f"Senior SRE for NebulaStack OpenNebula cluster. "
                 f"Allowed tools: [{_TOOL_NAMES}]. "
                 "Rule 1: ALWAYS call get_live_metrics() first to get real numbers. "
-                "Rule 2: NEVER invent or estimate any metric. "
-                "Rule 3: You advise — the admin decides and executes."
+                "Rule 2: If CPU/RAM/Load is high and the admin asks 'what is causing it' "
+                "or 'which app', ALWAYS call get_top_processes() to identify the real process. "
+                "Rule 3: NEVER invent or estimate any metric or process name. "
+                "Rule 4: For kill_process — this is a REAL destructive action. "
+                "Only set confirm=true if the admin's CURRENT message explicitly says to "
+                "kill/stop/terminate the process. Otherwise call with confirm=false. "
+                "Rule 5: For scale/restart/migrate, you only advise — admin executes manually."
             ),
             tools=_CHAT_TOOLS,
             llm=llm,
@@ -227,17 +279,22 @@ async def _run_chat_async(task_id: str, user_msg: str):
 
         task = Task(
             description=(
-                f"Admin question: '{user_msg}'\n\n"
+                f"Admin message: '{user_msg}'\n\n"
                 "Instructions:\n"
                 "1. Call get_live_metrics() to get real current data.\n"
-                "2. Use ONLY the numbers returned by that tool.\n"
-                "3. Format your answer as:\n"
-                "   - A Markdown table of relevant metrics (value + level)\n"
-                "   - 2-3 sentence analysis\n"
-                "   - Bullet list of recommended actions (advisory only)\n"
-                "4. Keep response under 350 words."
+                "2. If the admin is asking what's causing high usage, or asking to identify "
+                "an app/process, call get_top_processes() too.\n"
+                "3. If the admin explicitly asks to kill/stop/terminate a specific process "
+                "(by name or PID) in THIS message, call kill_process with confirm=true.\n"
+                "4. If unsure whether the admin confirmed, call kill_process with confirm=false "
+                "to surface the safe confirmation prompt back to them.\n"
+                "5. Format your answer as:\n"
+                "   - A Markdown table of relevant metrics/processes\n"
+                "   - 2-3 sentence analysis (name the actual process if found)\n"
+                "   - Bullet list of recommended or executed actions\n"
+                "6. Keep response under 350 words."
             ),
-            expected_output="Markdown: metrics table + analysis + advisory recommendations.",
+            expected_output="Markdown: metrics/process table + analysis + actions taken or recommended.",
             agent=agent,
         )
 
@@ -259,7 +316,7 @@ async def _run_chat_async(task_id: str, user_msg: str):
                             continue
                     raise
 
-        # FIX 1: asyncio.get_event_loop() deprecated in Python 3.10+
+        # asyncio.get_event_loop() deprecated in Python 3.10+ → dùng to_thread
         result = await asyncio.to_thread(_kickoff_retry)
         task_store[task_id] = {"status": "completed", "response": str(result)}
 
@@ -300,15 +357,15 @@ class _AMAlert(BaseModel):
 
 class _AMPayload(BaseModel):
     """Toàn bộ payload POST từ Alertmanager."""
-    receiver:           str         = ""
-    status:             str         = "firing"
+    receiver:           str            = ""
+    status:             str            = "firing"
     alerts:             list[_AMAlert] = []
-    groupLabels:        dict        = {}
-    commonLabels:       dict        = {}
-    commonAnnotations:  dict        = {}
-    externalURL:        str         = ""
-    version:            str         = "4"
-    groupKey:           str         = ""
+    groupLabels:        dict           = {}
+    commonLabels:       dict           = {}
+    commonAnnotations:  dict           = {}
+    externalURL:        str            = ""
+    version:            str            = "4"
+    groupKey:           str            = ""
 
 
 @app.post("/api/agent/prometheus-webhook", status_code=200)
