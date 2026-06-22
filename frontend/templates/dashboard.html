@@ -18,13 +18,16 @@
         }
     </script>
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #101722; }
+        body { font-family: 'Inter', sans-serif; overflow: hidden; }
+        .grafana-placeholder { background-image: linear-gradient(135deg, rgba(60,131,246,0.05) 0%, rgba(16,23,34,1) 100%); }
+        @media (max-height: 900px) { body { overflow-y: auto; } }
     </style>
 </head>
-<body class="text-slate-100 font-display min-h-screen flex flex-col">
-<div class="flex flex-col min-h-screen">
+<body class="bg-background-dark text-slate-100 font-display min-h-screen flex flex-col">
+<div class="flex flex-col h-screen overflow-hidden">
 
-    <header class="flex items-center justify-between border-b border-slate-800 px-6 py-3 bg-background-dark sticky top-0 z-50">
+    <!-- Header -->
+    <header class="flex items-center justify-between border-b border-slate-800 px-6 py-3 bg-background-dark shrink-0 z-50">
         <div class="flex items-center gap-10">
             <div class="flex items-center gap-4">
                 <div class="text-primary">
@@ -41,6 +44,7 @@
             </nav>
         </div>
         <div class="flex items-center gap-3">
+            <!-- Prometheus status badge -->
             <div id="prom-badge" class="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-[10px] font-bold">
                 <span id="prom-dot" class="h-1.5 w-1.5 rounded-full bg-slate-500"></span>
                 <span id="prom-label" class="text-slate-500">Prometheus</span>
@@ -51,9 +55,10 @@
         </div>
     </header>
 
-    <main class="flex-1 px-6 py-6 max-w-[1600px] mx-auto w-full flex flex-col gap-6">
+    <main class="flex-1 px-6 py-4 max-w-[1600px] mx-auto w-full flex flex-col gap-4 overflow-hidden">
 
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+        <!-- Title -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 shrink-0">
             <div>
                 <h1 class="text-white text-2xl font-extrabold tracking-tight">System Overview</h1>
                 <p class="text-slate-400 text-xs mt-0.5">Real-time cloud infrastructure monitoring and analytics.</p>
@@ -61,7 +66,9 @@
             <p id="last-updated" class="text-slate-600 text-[10px]">Updating...</p>
         </div>
 
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Top 4 metric cards -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
+            <!-- Total Instances -->
             <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 shadow-sm">
                 <div class="flex justify-between items-start mb-2">
                     <p class="text-slate-400 text-xs font-medium">Total Instances</p>
@@ -72,6 +79,7 @@
                     <span class="material-symbols-outlined text-[14px] mr-1">trending_up</span>Live count
                 </p>
             </div>
+            <!-- System Health (worst across all metrics) -->
             <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 shadow-sm">
                 <div class="flex justify-between items-start mb-2">
                     <p class="text-slate-400 text-xs font-medium">System Health</p>
@@ -82,6 +90,7 @@
                     <span class="material-symbols-outlined text-[14px] mr-1">horizontal_rule</span>Checking...
                 </p>
             </div>
+            <!-- Network I/O -->
             <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 shadow-sm">
                 <div class="flex justify-between items-start mb-2">
                     <p class="text-slate-400 text-xs font-medium">Network I/O</p>
@@ -92,6 +101,7 @@
                     <span class="material-symbols-outlined text-[14px] mr-1">swap_vert</span>RX + TX
                 </p>
             </div>
+            <!-- CPU Usage -->
             <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 shadow-sm">
                 <div class="flex justify-between items-start mb-2">
                     <p class="text-slate-400 text-xs font-medium">CPU Usage</p>
@@ -104,7 +114,8 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <!-- 5-Metric status bar -->
+        <div class="grid grid-cols-5 gap-3 shrink-0">
             <div class="bg-slate-800/40 rounded-xl border border-slate-700 p-3 flex flex-col gap-1">
                 <div class="flex justify-between items-center">
                     <span class="text-[10px] text-slate-400 font-semibold uppercase">CPU</span>
@@ -125,7 +136,7 @@
                 <div class="h-1.5 rounded-full bg-slate-700 overflow-hidden">
                     <div id="bar-ram" class="h-full rounded-full bg-blue-500 transition-all duration-500" style="width:0%"></div>
                 </div>
-                <p class="text-[9px] text-slate-500">WARN avail <15% · CRIT <5%</p>
+                <p class="text-[9px] text-slate-500">WARN avail &lt;15% · CRIT &lt;5%</p>
             </div>
             <div class="bg-slate-800/40 rounded-xl border border-slate-700 p-3 flex flex-col gap-1">
                 <div class="flex justify-between items-center">
@@ -158,45 +169,34 @@
                 <div class="h-1.5 rounded-full bg-slate-700 overflow-hidden">
                     <div id="bar-load" class="h-full rounded-full bg-teal-500 transition-all duration-500" style="width:0%"></div>
                 </div>
-                <p class="text-[9px] text-slate-500">WARN ×1.5 · CRIT ×2.0</p>
+                <p class="text-[9px] text-slate-500">WARN ×1.5 · CRIT ×2.0 cores</p>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            
-            <div class="lg:col-span-3 flex flex-col gap-6">
-                <div class="w-full rounded-xl border border-slate-700 bg-background-dark overflow-hidden h-[350px]">
-                    <iframe 
-                        src=http://192.168.57.7:3000/d-solo/adx7zz8/node-exporter-full-copy?orgId=1&timezone=browser&var-ds_prometheus=dfibyk582xfr4c&var-job=node&var-nodename=host-node&var-node=192.168.57.9:9100&theme=dark&panelId=panel-77&__feature.dashboardScene=true&refresh=5s&from=now-30m&to=now&kiosk" 
-                        width="100%" 
-                        height="100%" 
-                        frameborder="0">
-                    </iframe>
+        <!-- Grafana panels + sidebar -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-0">
+            <div class="lg:col-span-3 flex flex-col gap-4 overflow-hidden">
+                <div class="grafana-placeholder w-full flex-1 rounded-xl border border-dashed border-slate-700 flex flex-col items-center justify-center group overflow-hidden min-h-[160px]">
+                    <span class="material-symbols-outlined text-slate-600 text-4xl mb-3">monitoring</span>
+                    <p class="text-slate-300 font-semibold text-base">Grafana Panel: CPU Load Distribution</p>
+                    <p class="text-slate-500 text-xs mt-1">Aggregate data from 14 clusters</p>
                 </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="w-full rounded-xl border border-slate-700 bg-background-dark overflow-hidden h-[280px]">
-                        <iframe 
-                            src=http://192.168.57.7:3000/d-solo/adx7zz8/node-exporter-full-copy?orgId=1&timezone=browser&var-ds_prometheus=dfibyk582xfr4c&var-job=node&var-nodename=host-node&var-node=192.168.57.9:9100&theme=dark&panelId=panel-78&__feature.dashboardScene=true&refresh=5s&from=now-30m&to=now&kiosk" 
-                            width="100%" 
-                            height="100%" 
-                            frameborder="0">
-                        </iframe>
+                <div class="grid grid-cols-2 gap-4 h-1/3 min-h-[120px]">
+                    <div class="grafana-placeholder w-full h-full rounded-xl border border-dashed border-slate-700 flex flex-col items-center justify-center overflow-hidden">
+                        <span class="material-symbols-outlined text-slate-600 text-3xl mb-2">memory</span>
+                        <p class="text-slate-300 font-semibold text-sm">Grafana Panel: RAM Utilization</p>
                     </div>
-                    <div class="w-full rounded-xl border border-slate-700 bg-background-dark overflow-hidden h-[280px]">
-                        <iframe 
-                            src=http://192.168.57.7:3000/d-solo/adx7zz8/node-exporter-full-copy?orgId=1&timezone=browser&var-ds_prometheus=dfibyk582xfr4c&var-job=node&var-nodename=host-node&var-node=192.168.57.9:9100&theme=dark&panelId=panel-74&__feature.dashboardScene=true&refresh=5s&from=now-30m&to=now&kiosk" 
-                            width="100%" 
-                            height="100%" 
-                            frameborder="0">
-                        </iframe>
+                    <div class="grafana-placeholder w-full h-full rounded-xl border border-dashed border-slate-700 flex flex-col items-center justify-center overflow-hidden">
+                        <span class="material-symbols-outlined text-slate-600 text-3xl mb-2">speed</span>
+                        <p class="text-slate-300 font-semibold text-sm">Grafana Panel: Network Latency</p>
                     </div>
                 </div>
             </div>
 
-            <aside class="flex flex-col gap-6">
-                <div class="bg-slate-800/50 rounded-xl border border-slate-700 flex flex-col">
-                    <div class="px-4 py-3 border-b border-slate-700 flex justify-between items-center bg-slate-800/80 rounded-t-xl">
+            <aside class="flex flex-col gap-4 overflow-hidden h-full">
+                <!-- Critical Alerts -->
+                <div class="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden flex flex-col">
+                    <div class="px-4 py-3 border-b border-slate-700 flex justify-between items-center bg-slate-800/80 shrink-0">
                         <h3 class="font-bold text-[10px] tracking-widest uppercase text-slate-400">Critical Alerts</h3>
                         <span id="alert-dot" class="flex h-2 w-2 rounded-full bg-slate-600"></span>
                     </div>
@@ -204,24 +204,23 @@
                         <div class="text-center text-xs text-slate-500 italic">Fetching alerts...</div>
                     </div>
                 </div>
-                
-                <div class="bg-slate-800/50 rounded-xl border border-slate-700 flex flex-col">
-                    <div class="px-4 py-3 border-b border-slate-700 bg-slate-800/80 rounded-t-xl">
+                <!-- Host Nodes -->
+                <div class="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden flex flex-col flex-1">
+                    <div class="px-4 py-3 border-b border-slate-700 bg-slate-800/80 shrink-0">
                         <h3 class="font-bold text-[10px] tracking-widest uppercase text-slate-400">Host Node Status</h3>
                     </div>
-                    <div id="box-nodes" class="p-4 space-y-3 max-h-[350px] overflow-y-auto">
+                    <div id="box-nodes" class="p-4 space-y-3 flex-1 overflow-y-auto">
                         <div class="text-center text-xs text-slate-500 italic">Loading nodes...</div>
                     </div>
-                    <div class="p-3 bg-slate-800/30 border-t border-slate-700 rounded-b-xl">
+                    <div class="p-3 bg-slate-800/30 border-t border-slate-700 mt-auto shrink-0">
                         <button class="w-full py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-[10px] font-bold rounded transition-colors uppercase tracking-tight">View All Nodes</button>
                     </div>
                 </div>
             </aside>
-            
         </div>
     </main>
 
-    <footer class="border-t border-slate-800 px-6 py-4 mt-auto">
+    <footer class="border-t border-slate-800 px-6 py-3 shrink-0">
         <div class="max-w-[1600px] mx-auto flex flex-col md:flex-row justify-between items-center gap-4 text-slate-500 text-[10px]">
             <p>© 2024 NebulaStack Infrastructure. All rights reserved.</p>
             <div class="flex gap-6">
@@ -291,11 +290,11 @@
             document.getElementById('health-sub').innerHTML  = `<span class="material-symbols-outlined text-[14px] mr-1">monitor_heart</span>CPU·RAM·Disk·Net·Load`;
 
             // ── Card 3: Network I/O ──────────────────────────────────────────
-            const netTotal = ((m.rx ?? 0) + (m.tx ?? 0)).toFixed(2);
+            const netTotal = ((m.net_rx_mbps ?? 0) + (m.net_tx_mbps ?? 0)).toFixed(2);
             document.getElementById('val-network').innerText = netTotal + ' Mbps';
             const nc = LEVEL_COLORS[m.net_level] || LEVEL_COLORS['N/A'];
             document.getElementById('val-network').className = `text-2xl font-bold mb-0.5 ${nc.text}`;
-            document.getElementById('net-sub').innerHTML = `<span class="material-symbols-outlined text-[14px] mr-1">arrow_downward</span>${(m.rx ?? 0).toFixed(1)} RX  <span class="material-symbols-outlined text-[14px] mr-1">arrow_upward</span>${(m.tx ?? 0).toFixed(1)} TX`;
+            document.getElementById('net-sub').innerHTML = `<span class="material-symbols-outlined text-[14px] mr-1">arrow_downward</span>${(m.net_rx_mbps??0).toFixed(1)} RX &nbsp;<span class="material-symbols-outlined text-[14px] mr-1">arrow_upward</span>${(m.net_tx_mbps??0).toFixed(1)} TX`;
 
             // ── Card 4: CPU ──────────────────────────────────────────────────
             const cc = LEVEL_COLORS[m.cpu_level] || LEVEL_COLORS['N/A'];
@@ -304,23 +303,28 @@
             document.getElementById('cpu-sub').innerHTML = `<span class="material-symbols-outlined text-[14px] mr-1">memory</span>${m.cpu_cores ?? '--'} cores`;
 
             // ── 5-Metric status bar ──────────────────────────────────────────
+            // CPU
             applyBadge('badge-cpu', m.cpu_level ?? 'N/A');
             document.getElementById('bar-cpu-val').innerText = m.cpu_pct !== null ? m.cpu_pct + '%' : '--';
             setBar('bar-cpu', m.cpu_pct ?? 0, m.cpu_level);
 
+            // RAM (show used %)
             const ramUsed = m.ram_used_pct ?? (m.ram_avail_pct !== null ? 100 - m.ram_avail_pct : null);
             applyBadge('badge-ram', m.ram_level ?? 'N/A');
             document.getElementById('bar-ram-val').innerText = ramUsed !== null ? ramUsed.toFixed(1) + '% used' : '--';
             setBar('bar-ram', ramUsed ?? 0, m.ram_level);
 
+            // Disk
             applyBadge('badge-disk', m.disk_level ?? 'N/A');
             document.getElementById('bar-disk-val').innerText = m.disk_used_pct !== null ? m.disk_used_pct + '%' : '--';
             setBar('bar-disk', m.disk_used_pct ?? 0, m.disk_level);
 
+            // Network utilisation %
             applyBadge('badge-net', m.net_level ?? 'N/A');
             document.getElementById('bar-net-val').innerText = netTotal + ' Mbps';
             setBar('bar-net', m.net_util_pct ?? 0, m.net_level);
 
+            // Load Average
             applyBadge('badge-load', m.load_level ?? 'N/A');
             const loadPct = m.cpu_cores ? Math.min(((m.load1 ?? 0) / (m.cpu_cores * 2)) * 100, 100) : 0;
             document.getElementById('bar-load-val').innerText = m.load1 !== null ? `${m.load1} (${m.load5}/${m.load15})` : '--';
@@ -334,6 +338,7 @@
             if (!hasCrit) {
                 alertsBox.innerHTML = '<div class="text-center text-xs text-slate-500 italic py-2">System is running smoothly. No alerts.</div>';
             } else {
+                // Build alert list from individual level fields
                 const metricAlerts = [
                     { label: 'CPU',     level: m.cpu_level,  detail: `${m.cpu_pct}% usage` },
                     { label: 'RAM',     level: m.ram_level,  detail: `${m.ram_avail_pct}% available` },
