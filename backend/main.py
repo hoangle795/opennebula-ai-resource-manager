@@ -15,7 +15,7 @@ from crewai.tools import BaseTool
 
 from api import dashboard_api, agent_api
 from ai_worker import AIAgentWorker
-from database import init_db, get_recent_logs, add_log
+from database import init_db, get_recent_logs, add_log, export_logs_to_json, export_logs_to_json
 from config import GROQ_API_KEY
 
 os.environ.setdefault("GROQ_API_KEY", GROQ_API_KEY)
@@ -34,6 +34,34 @@ app.include_router(agent_api.router,    prefix="/api/agent")
 @app.get("/api/logs")
 async def get_logs():
     return get_recent_logs(20)
+
+
+@app.post("/api/logs/export")
+async def export_logs(label: str = "manual"):
+    """
+    Xuất toàn bộ log hiện có ra file JSON trong backend/demo_logs/.
+    Dùng khi cần lưu log thủ công, không cần chờ sự cố tự đóng.
+    Lưu ý: hệ thống cũng TỰ ĐỘNG export mỗi khi 1 incident được resolve
+    (xem ai_worker.py → finish_execution()).
+    """
+    try:
+        filepath = export_logs_to_json(since_id=0, label=label)
+        return {"status": "success", "filepath": filepath}
+    except Exception as exc:
+        return {"status": "error", "message": str(exc)}
+
+
+@app.post("/api/logs/export")
+async def export_logs(label: str = "manual"):
+    """
+    Xuất toàn bộ log hiện có ra file JSON trong backend/demo_logs/.
+    Gọi tay khi cần lưu bằng chứng demo, không cần chờ sự cố tự đóng.
+    """
+    try:
+        filepath = export_logs_to_json(since_id=0, label=label)
+        return {"status": "success", "filepath": filepath}
+    except Exception as exc:
+        return {"status": "error", "message": str(exc)}
 
 
 @app.get("/health")

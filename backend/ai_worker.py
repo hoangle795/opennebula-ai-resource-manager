@@ -8,7 +8,8 @@ from urllib3.util.retry import Retry
 from datetime import datetime
 from typing import Optional
 
-from database import add_log
+# ── THÊM MỚI: get_latest_log_id, export_logs_to_json để tự động lưu log JSON ─
+from database import add_log, get_latest_log_id, export_logs_to_json
 from config import (
     PROMETHEUS_URL, THRESHOLDS, MONITOR_INTERVAL,
     NETWORK_IFACE, MAX_NETWORK_BW_BPS, GROQ_API_KEY,
@@ -25,14 +26,14 @@ _retry_cfg = Retry(
 _prom_session = requests.Session()
 _prom_session.mount("http://",  HTTPAdapter(max_retries=_retry_cfg))
 _prom_session.mount("https://", HTTPAdapter(max_retries=_retry_cfg))
-_prom_reachable = True   
+_prom_reachable = True
 
 
 class MetricSnapshot:
     __slots__ = (
         "cpu_pct", "ram_avail_pct", "disk_used_pct",
         "net_util_pct", "load1", "cpu_cores", "timestamp",
-        "rx_mbps", "tx_mbps",  
+        "rx_mbps", "tx_mbps",
     )
     def __init__(self):
         self.cpu_pct        = 0.0
@@ -42,8 +43,8 @@ class MetricSnapshot:
         self.load1          = 0.0
         self.cpu_cores      = 1
         self.timestamp      = datetime.now()
-        self.rx_mbps        = 0.0  
-        self.tx_mbps        = 0.0 
+        self.rx_mbps        = 0.0
+        self.tx_mbps        = 0.0
 
 
 class AIAgentWorker:
@@ -54,13 +55,15 @@ class AIAgentWorker:
         self._demo_spike     = False
         self._cpu_warn_since: Optional[datetime] = None
         self._cpu_crit_since: Optional[datetime] = None
+        # ── THÊM MỚI: mốc log để biết log nào thuộc lần demo/incident hiện tại ──
+        self._incident_start_log_id: Optional[int] = None
         self.state = {
             "current_phase": "MONITOR",
             "metrics": {
                 "cpu": 0.0, "ram_avail_pct": 100.0,
                 "disk_used_pct": 0.0, "net_util_pct": 0.0,
                 "load1": 0.0, "cpu_cores": 1,
-                "rx": 0.0, "tx": 0.0, 
+                "rx": 0.0, "tx": 0.0,
             },
             "alerts":  [],
             "analysis": {
@@ -83,7 +86,7 @@ class AIAgentWorker:
         global _prom_reachable
         try:
             r = _prom_session.get(
-                PROMETHEUS_URL, params={"query": promql}, timeout=5 
+                PROMETHEUS_URL, params={"query": promql}, timeout=5
             )
             r.raise_for_status()
             results = r.json().get("data", {}).get("result", [])
@@ -101,7 +104,7 @@ class AIAgentWorker:
 
     def _prom_error(self, reason: str, promql: str):
         global _prom_reachable
-        if _prom_reachable:        
+        if _prom_reachable:
             _prom_reachable = False
             add_log("ERROR", f"Prometheus unreachable ({reason}). Query: [{promql[:60]}]")
 
@@ -120,11 +123,11 @@ class AIAgentWorker:
        # Tự động tính tổng (sum) tất cả các card mạng, bỏ qua card ảo device!="lo"
         rx = self._prom('sum(rate(node_network_receive_bytes_total{device!="lo"}[1m]))', 0.0)
         tx = self._prom('sum(rate(node_network_transmit_bytes_total{device!="lo"}[1m]))', 0.0)
-        
+
         # Đã đổi Bytes/s sang Mbps và lưu vào state
         snap.rx_mbps = (rx * 8) / 1_000_000
         snap.tx_mbps = (tx * 8) / 1_000_000
-        
+
         snap.net_util_pct = (((rx + tx) * 8) / MAX_NETWORK_BW_BPS) * 100
         snap.cpu_cores = int(self._prom('count(node_cpu_seconds_total{mode="idle"})', 1))
         snap.load1     = self._prom("node_load1", 0.0)
@@ -206,13 +209,13 @@ class AIAgentWorker:
 
             self.state["current_phase"] = "MONITOR"
             snap = self._collect()
-            
+
             # Đã thêm rx, tx vào dict để cập nhật state
             self.state["metrics"].update({
                 "cpu": snap.cpu_pct, "ram_avail_pct": snap.ram_avail_pct,
                 "disk_used_pct": snap.disk_used_pct, "net_util_pct": snap.net_util_pct,
                 "load1": snap.load1, "cpu_cores": snap.cpu_cores,
-                "rx": snap.rx_mbps, "tx": snap.tx_mbps, 
+                "rx": snap.rx_mbps, "tx": snap.tx_mbps,
             })
             time.sleep(2)
 
@@ -239,6 +242,10 @@ class AIAgentWorker:
 
     # ── Plan ─────────────────────────────────────────────────────────────────
     def _plan_and_wait(self, snap: MetricSnapshot, alerts: list):
+        # ── THÊM MỚI: lưu mốc log đầu tiên của lần demo/incident này ──────────
+        if self._incident_start_log_id is None:
+            self._incident_start_log_id = get_latest_log_id()
+
         self.state["current_phase"] = "PLAN"
         add_log("INFO", "Invoking Llama-3 AI to generate remediation plan…")
         try:
@@ -276,7 +283,7 @@ class AIAgentWorker:
         add_log("AWAIT", "Plan ready. Approve or dismiss via Chatbox.")
         while self.state["current_phase"] == "WAITING_APPROVAL" and self.is_running:
             snap = self._collect()
-            
+
             # Đã thêm rx, tx vào dict để cập nhật state trong lúc chờ
             self.state["metrics"].update({
                 "cpu": snap.cpu_pct, "ram_avail_pct": snap.ram_avail_pct,
@@ -296,6 +303,19 @@ class AIAgentWorker:
         self._demo_spike = False
         self.state.update({"plan":[],"alerts":[],"current_phase":"MONITOR","execute_status":"Resolved"})
         add_log("SUCCESS", "Incident closed. Resuming normal monitoring.")
+
+        # ── THÊM MỚI: tự động xuất log JSON của lần demo/incident này ────────
+        if self._incident_start_log_id is not None:
+            try:
+                filepath = export_logs_to_json(
+                    since_id=self._incident_start_log_id,
+                    label="incident",
+                )
+                add_log("SUCCESS", f"Đã lưu log demo vào: {filepath}")
+            except Exception as exc:
+                add_log("ERROR", f"Export log JSON thất bại: {exc}")
+            finally:
+                self._incident_start_log_id = None  # reset mốc cho lần demo kế tiếp
 
     def start(self):
         threading.Thread(target=self.mape_k_loop, daemon=True).start()
