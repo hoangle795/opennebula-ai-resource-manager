@@ -119,8 +119,8 @@ Prometheus
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/hoangle795/cloud-ai-agent.git
-cd cloud-ai-agent
+git clone https://github.com/hoangle795/opennebula-ai-resource-manager.git
+cd opennebula-ai-resource-manager
 ```
 
 ### 2. Create Virtual Environment
