@@ -1,0 +1,31 @@
+{
+  "exported_at": "2026-06-28T20:47:50.151749",
+  "label": "incident",
+  "log_count": 4,
+  "logs": [
+    {
+      "id": 1072,
+      "level": "INFO",
+      "message": "Invoking Llama-3 AI to generate remediation plan…",
+      "timestamp": "20:47:40"
+    },
+    {
+      "id": 1073,
+      "level": "SUCCESS",
+      "message": "AI plan ready (3 steps).",
+      "timestamp": "20:47:41"
+    },
+    {
+      "id": 1074,
+      "level": "AWAIT",
+      "message": "Plan ready. Approve or dismiss via Chatbox.",
+      "timestamp": "20:47:41"
+    },
+    {
+      "id": 1075,
+      "level": "SUCCESS",
+      "message": "Incident closed. Resuming normal monitoring.",
+      "timestamp": "20:47:50"
+    }
+  ]
+}
