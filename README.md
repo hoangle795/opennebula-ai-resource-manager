@@ -9,6 +9,7 @@ This project was developed as a **major/specialized capstone project (Đồ án 
 The system combines Cloud Computing, AIOps, and Multi-Agent AI technologies to create a self-monitoring, self-analyzing cloud resource management platform for Infrastructure-as-a-Service (IaaS) environments.
 
 **Title (VN):** Thiết kế và triển khai hệ thống quản lý tài nguyên Cloud sử dụng AI Agent trên nền tảng OpenNebula
+
 **Title (EN):** Design and Implement an AI Agent-based Cloud Resource Management System on the OpenNebula Platform
 
 ## Features
